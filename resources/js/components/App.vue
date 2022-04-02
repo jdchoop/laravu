@@ -1,15 +1,15 @@
 <template>
   <div>
       
-  <Navbar :ruta="ruta"></Navbar>
+  <Navbar :ruta="ruta" :usuario="authUser"  :listPermisos="listRolPermisosByUsuario" ></Navbar>
 
   <!-- Main Sidebar Container -->
-  <Sidebar :ruta="ruta"></Sidebar>
+  <Sidebar :ruta="ruta" :usuario="authUser" :listPermisos="listRolPermisosByUsuario"></Sidebar>
 
   <!-- Content Wrapper. Contains page content -->
   <div class="content-wrapper">
-    <transition name="fade" mode="out-in">
-    <router-view></router-view>
+    <transition name="slide-fade" mode="out-in">
+       <router-view></router-view>
     </transition >
   </div>
   
@@ -31,8 +31,26 @@ import Sidebar from './plantilla/Sidebar'
 
 import Footer from './plantilla/Footer'
 export default {
-  props: ['ruta'],
-    components: {Navbar, Sidebar, Footer}
+  props: ['ruta', 'usuario'],
+    components: {Navbar, Sidebar, Footer},
+    data() {
+      return {
+        authUser: this.usuario,
+        listRolPermisosByUsuario:[]
+      }
+    },
+    mounted(){
+      
+      this.listRolPermisosByUsuario = JSON.parse(sessionStorage.getItem('listRolPermisosByUsuario'));
+      EventBus.$on('verifyAuthenticatedUser', data => {
+        //console.log("Evento ejecutado desde el componente App.vue");
+        //console.log(data);
+        this.authUser = data;
+      })
+      EventBus.$on('notifyRolPermisosByUsuario', data => {
+        this.listRolPermisosByUsuario = data;
+      })
+    },
 }
 </script>
 
