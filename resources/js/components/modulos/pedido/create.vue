@@ -122,7 +122,8 @@
                 </div>
                 <div class="card-footer">
                   <div class="row">
-                    <button class="btn btn-flat btn-info btnFull" @click.prevent="setRegistrarPedido"
+                    <button v-if="fTotalPedido > 0 && listPedidos.length > 0"
+                     class="btn btn-flat btn-info btnFull" @click.prevent="setRegistrarPedido"
                     v-loading.fullscreen.lock="fullscreenLoading">Registrar</button>
                     
                   </div>
@@ -133,29 +134,74 @@
         <div class="col-md-8">
             <div class="card card-info">
                 <div class="card-header">
-                  <h3 class="card-title">Listar Permisos</h3>
+                  <h3 class="card-title">SELECCIONE SUS PRODUCTOS</h3>
                 </div>
 
             <div class="card-body table-responsive">
-                  <template v-if="listPermisosFilter.length">
+              <vs-tooltip not-arrow right>
+                <vs-button
+                @click.prevent="agregarProducto"
+                    square
+                    icon
+                    color="rgb(59,222,200)"
+                    gradient>
+                    <i class="fas fa-plus-square"></i>
+                  </vs-button>
+                <template #tooltip>
+                  AGREGA UN PRODUCTO
+                </template>
+              </vs-tooltip>
+
+               
+
+                  <template v-if="listPedidos.length">
                     <div class="scrollTable">
                   <table class="table table-hover table-head-fixed text-nowrap projects">
                     <thead>
                       <tr>
-                        <th>Accion</th>
-                        <th>Nombre</th>
-                        <th>URL AMIGABLE</th>
-                        
+                        <th>ARTICULO</th>
+                        <th>STOCK</th>
+                        <th>PRECIO</th>
+                        <th>SUB TOTAL</th>
+                        <th>ACCIONES</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr v-for="(item, index) in listPermisosFilter " :key="index" @click.prevent="marcarFila(index)">
+                      <tr v-for="(item, index) in listPedidos " :key="index" 
+                      >
                         <td>
+                          <el-select v-model="item.nIdProducto" 
+                          @change="obtenerProducto(item.nIdProducto, index)"
+                          placeholder="Seleccione un PRODUCTO" clearable filterable="">
+                            <el-option
+                              v-for="item in listProductos"
+                              :key="item.id"
+                              :label="item.name"
+                              :value="item.id">
+                            </el-option>
+                          </el-select>
                             <!-- ira un check para seleccionar permisos -->
-                            <el-checkbox v-model="item.checked"></el-checkbox>
+                           
                         </td>
-                        <td v-text="item.name"></td>
-                        <td v-text="item.slug"></td>
+                        <td>
+                          <el-input-number v-model="item.nStock" controls-position="right" 
+                                     :min="1" :max="(item.nIdProducto) ? item.nStockFlag : 1" >
+                          </el-input-number>
+                        </td>
+                        <td v-text="item.fPrecio"></td>
+                        <td >{{ item.fSubTotal = item.nStock * item.fPrecio }}</td>
+                        <td>
+                          <el-tooltip class="item" effect="dark" content="REMOVER PRODUCTO" placement="left">
+                          <vs-button
+                          @click.prevent="removerProducto(index)"
+                              square
+                              icon
+                              danger>
+                              <i class="fas fa-trash"></i>
+                            </vs-button>
+                          
+                        </el-tooltip>
+                        </td>
                         <!-- <td>
                           <router-link class="btn btn-primary btn-sm" :to="{name:'usuario.ver', params:{id: item.id}}">
                             <i class="fas fa-folder">Ver</i>
@@ -169,6 +215,14 @@
                     </tbody>
                   </table>
                   </div>
+                  <el-row :gutter="20">
+                    <el-col :span="16">
+                      <vs-input border v-model="cComentario" placeholder="COMENTARIO" />
+                    </el-col>
+                    <el-col :span="8">
+                      <strong>Total : </strong>{{fTotalPedido = totalPedido}}
+                      </el-col>
+                  </el-row>
                   </template>
                   <template v-else>
                     <div class="callout callout-info">
@@ -235,8 +289,13 @@ export default {
       listClientes: [],
       listClientesFilter: [],
 
-      listPermisos: [],
-      listPermisosFilter: [],
+      listProductos: [],
+      listPedidos: [],
+      cComentario:'',
+      fTotalPedido:0,
+
+      listProductos: [],
+      
       fullscreenLoading: false,
       modalShow: false,
       mostrarModal:{
@@ -253,11 +312,17 @@ export default {
   computed: {
      validEmail() {
           return /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(this.fillCrearCliente.cEmail)
-        }
+        },
+      totalPedido(){
+        return this.listPedidos.reduce(function(valorAnterior, valorActual){
+          return valorAnterior + parseFloat(valorActual.fSubTotal)
+        },0)
+      }
   },
   mounted(){
-      this.getListarPermisosByRol();
+      this.agregarProducto();
       this.getListarClientes();
+      this.getListarProductos();
   },
 
   methods: {
@@ -311,6 +376,20 @@ export default {
           this.fillCrearCliente.cEmail = rpta[0].email;
           this.fillCrearCliente.cTelefono = rpta[0].phone;
       },
+      getListarProductos(){
+          var ruta = '/configuracion/producto/getListarProductos'
+          axios.get(ruta).then( response => {
+              this.listProductos = response.data;
+              
+          }).catch(error => {
+          if (error.response.status == 401) {
+            this.$router.push({name: 'login'})
+            location.reload();
+            sessionStorage.clear();
+            this.fullscreenLoading = false;
+          }
+        })
+      },
       limpiarCriterios(){
         this.fillCrearCliente.nIdCliente = '';
         this.cBusqueda = '';
@@ -323,34 +402,89 @@ export default {
       abrirModal(){
           this.modalShow = !this.modalShow;
       },
-      getListarPermisosByRol(){
-          var ruta = '/administracion/rol/getListarPermisosByRol'
-          axios.get(ruta).then( response =>{
-              this.listPermisos = response.data;
-              this.filterPermisosByRol();
-          }).catch(error => {
-            if (error.response.status == 401) {
-              this.$router.push({name: 'login'})
-              location.reload();
-              sessionStorage.clear();
-              this.fullscreenLoading = false;
-            }
+      agregarProducto(){
+        let me = this;
+         if (this.listPedidos.length == 0){
+           this.listPedidos.push({
+           'nIdProducto': '',
+           'nStock': '',
+           'nStockFlag': '',
+           'fPrecio': '',
+           'fSubTotal': ''
+         })
+         } else {
+           let contador = 0;
+           this.listPedidos.map(function(x, y){
+             if (!x.nIdProducto || !x.nStock || !x.fPrecio || !x.fSubTotal) {
+               contador++;
+
+               const noti = me.$vs.notification({
+                square: true,
+                color: 'rgb(59,222,200)',
+                title: 'ALERTA',
+                text: 'DEBE COMPLETAR LA INFORMACION DE LA FILA' + (y+1)
+              })
+             }
+           })
+           if (contador == 0) {
+              this.listPedidos.push({
+              'nIdProducto': '',
+              'nStock': '',
+              'fPrecio': '',
+              'fSubTotal': ''
+            })
+           }
+         }
+      },
+      removerProducto(index){
+        this.$delete(this.listPedidos, index);
+      },
+      obtenerProducto(nIdProducto, index){
+        let me = this;
+        if (!nIdProducto) {
+          Vue.nextTick(function () {
+              me.listPedidos[index].nStock = '';
+              me.listPedidos[index].nStockFlag = '';
+              me.listPedidos[index].fPrecio = '';
           })
+          
+        }
+           let contador = 0;
+           this.listPedidos.map(function(x, y){
+             if (x.nIdProducto == nIdProducto && y != index) {
+               contador++;
+
+               const noti = me.$vs.notification({
+                square: true,
+                color: 'rgb(59,222,200)',
+                title: 'ALERTA',
+                text: 'este producto ya se encuentra agregado en LA FILA' + (y+1)
+              })
+             }
+           })
+           if (contador == 0) {
+              let rpta = this.listProductos.filter (producto => {
+                return (String(producto.id).indexOf(String(nIdProducto)) != -1);
+              })
+              if (rpta[0].stock > 0){
+                this.listPedidos[index].nStock = rpta[0].stock;
+                this.listPedidos[index].nStockFlag = rpta[0].stock;
+                this.listPedidos[index].fPrecio = rpta[0].price;
+              } else {
+                this.listPedidos[index].nIdProducto = '';
+                const noti = me.$vs.notification({
+                square: true,
+                color: 'rgb(59,222,200)',
+                title: 'ALERTA',
+                text: 'este producto no cuenta con stock disponible' 
+                })
+              }
+              
+           } else {
+             this.listPedidos[index].nIdProducto = '';
+           }      
       },
-      filterPermisosByRol(){
-          let me = this;
-          me.listPermisos.map(function(x, y){
-              me.listPermisosFilter.push({
-              'id': x.id,
-              'name': x.name,
-              'slug': x.slug,
-              'checked': false
-              })  
-          });
-      },
-      marcarFila(index){
-          this.listPermisosFilter[index].checked = !this.listPermisosFilter[index].checked;
-      },
+      
       setRegistrarPedido(){
           if (this.validarRegistrarPedido()) {
               this.modalShow = true;
@@ -359,10 +493,13 @@ export default {
           this.fullscreenLoading = true;
           if (this.switchCliente) {
               this.setRegistrarCliente();
+          } else {
+            this.setGuardarPedido(this.fillCrearCliente.nIdCliente);
           }
           
       },
       setRegistrarCliente(){
+        this.fullscreenLoading = true;
           var url = '/operacion/cliente/setRegistrarCliente'
           axios.post(url, {
               'cDocumento' : this.fillCrearCliente.cDocumento,
@@ -371,9 +508,29 @@ export default {
               'cEmail' : this.fillCrearCliente.cEmail,
               'cTelefono' : this.fillCrearCliente.cTelefono
           }).then(response => {
-              this.fullscreenLoading = false;
-              console.log(response.data);
-              this.getListarClientes();
+              let nIdCliente = response.data[0].nIdCliente;
+              this.setGuardarPedido(nIdCliente);
+          }).catch(error => {
+          if (error.response.status == 401) {
+            this.$router.push({name: 'login'})
+            location.reload();
+            sessionStorage.clear();
+            this.fullscreenLoading = false;
+          }
+        })
+      },
+      setGuardarPedido(nIdCliente){
+        this.fullscreenLoading = true;
+          var url = '/operacion/pedido/setRegistrarPedido'
+          axios.post(url, {
+              'nIdCliente' : nIdCliente,
+              'cComentario' : this.cComentario,
+              'fTotalPedido' : this.fTotalPedido,
+              'listPedido' : this.listPedidos,
+              
+          }).then(response => {
+            this.fullscreenLoading = true;
+              this.$router.push('/pedido')
           }).catch(error => {
           if (error.response.status == 401) {
             this.$router.push({name: 'login'})
@@ -418,5 +575,28 @@ export default {
 </script>
 
 <style>
-
+  .el-row {
+    margin-bottom: 20px;
+    
+  }
+  .el-col {
+    border-radius: 4px;
+  }
+  .bg-purple-dark {
+    background: #99a9bf;
+  }
+  .bg-purple {
+    background: #d3dce6;
+  }
+  .bg-purple-light {
+    background: #e5e9f2;
+  }
+  .grid-content {
+    border-radius: 4px;
+    min-height: 36px;
+  }
+  .row-bg {
+    padding: 10px 0;
+    background-color: #f9fafc;
+  }
 </style>

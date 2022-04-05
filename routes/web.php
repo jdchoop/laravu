@@ -51,6 +51,7 @@ Route::post('/configuracion/producto/setRegistrarProducto', 'Configuracion\Produ
 Route::post('/configuracion/producto/setEditarProducto', 'Configuracion\ProductsController@setEditarProducto');
 
 Route::get('/operacion/pedido/getListarPedidos', 'Operacion\OrdersController@getListarPedidos');
+Route::post('/operacion/pedido/setRegistrarPedido', 'Operacion\OrdersController@setRegistrarPedido');
 
 Route::get('/operacion/cliente/getListarClientes', 'Operacion\CustomersController@getListarClientes');
 Route::post('/operacion/cliente/setRegistrarCliente', 'Operacion\CustomersController@setRegistrarCliente');
