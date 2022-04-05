@@ -120,7 +120,7 @@
                         <td>
                           
                             <template v-if="listRolPermisosByUsuario.includes('pedido.ver')">
-                              <button class="btn btn-info btn-sm" >
+                              <button class="btn btn-info btn-sm" @click.prevent="setGenerarDocumento(item.id)" >
                                 <i class="fas fa-file-pdf">VER PDF</i>
                               </button>
                             </template>
@@ -246,9 +246,35 @@ export default {
           sessionStorage.clear();
           this.fullscreenLoading = false;
         }
-      })
-     
-      
+      }) 
+    },
+    setGenerarDocumento(nIdPedido){
+    const loading = this.$vs.loading({
+              type: 'square',
+              color: '#D5397B',
+              background: 'eee',
+              text: 'CARGANDO...'
+            })
+          var config = {
+            responseType: 'blob'
+          }
+          var url = '/operacion/pedido/setGenerarDocumento'
+          axios.post(url, {
+              'nIdPedido' : nIdPedido,
+          }, config).then(response => {
+            
+            var oMyBlob = new Blob([response.data], {type : 'application/pdf'});
+            var url = URL.createObjectURL(oMyBlob);
+            window.open(url);
+            loading.close()
+          }).catch(error => {
+            if (error.response.status == 401) {
+              this.$router.push({name: 'login'})
+              location.reload();
+              sessionStorage.clear();
+              this.fullscreenLoading = false;
+            }
+          }) 
     },
     nextPage() {
       this.pageNumber++;

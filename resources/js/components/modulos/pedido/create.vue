@@ -124,7 +124,7 @@
                   <div class="row">
                     <button v-if="fTotalPedido > 0 && listPedidos.length > 0"
                      class="btn btn-flat btn-info btnFull" @click.prevent="setRegistrarPedido"
-                    v-loading.fullscreen.lock="fullscreenLoading">Registrar</button>
+                    >Registrar</button>
                     
                   </div>
                 </div>
@@ -490,7 +490,12 @@ export default {
               this.modalShow = true;
               return;
           }
-          this.fullscreenLoading = true;
+          const loading = this.$vs.loading({
+              type: 'square',
+              color: '#D5397B',
+              background: 'eee',
+              text: 'CARGANDO...'
+            })
           if (this.switchCliente) {
               this.setRegistrarCliente();
           } else {
@@ -529,8 +534,8 @@ export default {
               'listPedido' : this.listPedidos,
               
           }).then(response => {
-            this.fullscreenLoading = true;
-              this.$router.push('/pedido')
+            
+              this.setGenerarDocumento(response.data);
           }).catch(error => {
           if (error.response.status == 401) {
             this.$router.push({name: 'login'})
@@ -540,6 +545,31 @@ export default {
           }
         })
       },
+      setGenerarDocumento(nIdPedido){
+    
+          var config = {
+            responseType: 'blob'
+          }
+          var url = '/operacion/pedido/setGenerarDocumento'
+          axios.post(url, {
+              'nIdPedido' : nIdPedido,
+          }, config).then(response => {
+            
+            var oMyBlob = new Blob([response.data], {type : 'application/pdf'});
+            var url = URL.createObjectURL(oMyBlob);
+            window.open(url);
+            loading.close()
+            
+              this.$router.push('/pedido')
+          }).catch(error => {
+            if (error.response.status == 401) {
+              this.$router.push({name: 'login'})
+              location.reload();
+              sessionStorage.clear();
+              this.fullscreenLoading = false;
+            }
+          }) 
+    },
       validarRegistrarPedido(){
           this.error = 0;
           this.mensajeError = [];

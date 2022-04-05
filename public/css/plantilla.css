@@ -57,3 +57,6 @@
 .vs-tooltip-content{
 width: min-content !important;
 }
+.vs-input-parent{
+    width: 100% !important;
+}
